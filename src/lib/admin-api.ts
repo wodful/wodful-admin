@@ -260,6 +260,7 @@ export async function listPayments(params: {
   status?: PaymentStatus | "";
   championshipId?: string;
   search?: string;
+  isComplimentary?: string;
 }) {
   return apiRequest<PaginatedResponse<PaymentListItem>>(
     `/admin/payments${buildQuery(params)}`,

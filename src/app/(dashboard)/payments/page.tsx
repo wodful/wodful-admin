@@ -41,9 +41,13 @@ function PaymentsPageContent() {
   const searchParams = useSearchParams();
   const searchId = useId();
   const statusId = useId();
+  const complimentaryId = useId();
   const [searchInput, setSearchInput] = useState("");
   const [status, setStatus] = useState<PaymentStatus | "">(
     (searchParams.get("status") as PaymentStatus | null) ?? "",
+  );
+  const [isComplimentary, setIsComplimentary] = useState(
+    searchParams.get("isComplimentary") ?? "",
   );
   const [page, setPage] = useState(1);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -54,18 +58,21 @@ function PaymentsPageContent() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, status]);
+  }, [search, status, isComplimentary]);
 
   useEffect(() => {
     const params = new URLSearchParams();
     if (status) params.set("status", status);
+    if (isComplimentary === "true" || isComplimentary === "false") {
+      params.set("isComplimentary", isComplimentary);
+    }
     const qs = params.toString();
     router.replace(qs ? `/payments?${qs}` : "/payments", { scroll: false });
-  }, [status, router]);
+  }, [status, isComplimentary, router]);
 
   const filters = useMemo(
-    () => ({ page, perPage: 20, search, status }),
-    [page, search, status],
+    () => ({ page, perPage: 20, search, status, isComplimentary }),
+    [page, search, status, isComplimentary],
   );
 
   const { data, isLoading, isError, error, isFetching } = useQuery({
@@ -106,7 +113,7 @@ function PaymentsPageContent() {
       {exportError ? <Alert variant="error">{exportError}</Alert> : null}
 
       <Card padding="compact">
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <FormField
             id={searchId}
             label="Busca"
@@ -133,6 +140,18 @@ function PaymentsPageContent() {
               <option value="PAID">Pago</option>
               <option value="CANCELLED">Cancelado</option>
               <option value="EXPIRED">Expirado</option>
+            </Select>
+          </FormField>
+
+          <FormField id={complimentaryId} label="Cortesia">
+            <Select
+              id={complimentaryId}
+              value={isComplimentary}
+              onChange={(e) => setIsComplimentary(e.target.value)}
+            >
+              <option value="">Todas</option>
+              <option value="false">Sem cortesia</option>
+              <option value="true">Só cortesia</option>
             </Select>
           </FormField>
         </div>

@@ -388,6 +388,7 @@ export type PaymentListItem = {
     nickname: string;
     status: SubscriptionStatus;
     responsibleEmail: string;
+    isComplimentary: boolean;
   } | null;
   championship: {
     id: string;

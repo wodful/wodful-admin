@@ -20,8 +20,8 @@ import type {
 } from "@/lib/types";
 
 const alertHref: Record<string, string> = {
-  stale_pending_payments: "/payments?status=PENDING",
-  paid_without_approved: "/payments?status=PAID",
+  stale_pending_payments: "/payments?status=PENDING&isComplimentary=false",
+  paid_without_approved: "/payments?status=PAID&isComplimentary=false",
   cancelled_still_waiting: "/subscriptions?status=WAITING",
   inactive_owner_active_event: "/events?isActive=true",
   sold_out_with_waiting: "/subscriptions?status=WAITING",
@@ -105,7 +105,7 @@ export default function DashboardPage() {
             label="Pagamentos pendentes"
             value={kpis.paymentsPending}
             tone={kpis.paymentsPending > 0 ? "warning" : "default"}
-            href="/payments?status=PENDING"
+            href="/payments?status=PENDING&isComplimentary=false"
           />
         </div>
       </Section>
