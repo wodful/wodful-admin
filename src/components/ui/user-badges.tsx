@@ -1,4 +1,8 @@
-import type { Role } from "@/lib/types";
+import type {
+  PaymentStatus,
+  Role,
+  SubscriptionStatus,
+} from "@/lib/types";
 
 import { Badge } from "./badge";
 
@@ -28,4 +32,29 @@ export function StatusBadge({ isActive }: { isActive: boolean }) {
       {isActive ? "Ativo" : "Inativo"}
     </Badge>
   );
+}
+
+export function SubscriptionStatusBadge({
+  status,
+}: {
+  status: SubscriptionStatus;
+}) {
+  const map = {
+    WAITING: { label: "Aguardando", variant: "muted" as const },
+    APPROVED: { label: "Aprovada", variant: "success" as const },
+    DECLINED: { label: "Recusada", variant: "danger" as const },
+  };
+  const item = map[status];
+  return <Badge variant={item.variant}>{item.label}</Badge>;
+}
+
+export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
+  const map = {
+    PENDING: { label: "Pendente", variant: "muted" as const },
+    PAID: { label: "Pago", variant: "success" as const },
+    CANCELLED: { label: "Cancelado", variant: "danger" as const },
+    EXPIRED: { label: "Expirado", variant: "danger" as const },
+  };
+  const item = map[status];
+  return <Badge variant={item.variant}>{item.label}</Badge>;
 }

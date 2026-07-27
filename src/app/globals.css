@@ -44,6 +44,14 @@
     @apply appearance-none border-0 bg-transparent text-inherit shadow-none;
     font: inherit;
   }
+
+  table {
+    @apply border-collapse;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 @keyframes fade-in-up {

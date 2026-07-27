@@ -7,6 +7,7 @@ export type StoredAdminUser = {
   email: string;
   username: string;
   role: string;
+  totpEnabled?: boolean;
 };
 
 export function getToken(): string | null {

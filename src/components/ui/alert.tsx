@@ -21,7 +21,7 @@ export function Alert({ variant = "info", children, className }: AlertProps) {
     <p
       role="alert"
       className={cn(
-        "rounded-lg border px-3.5 py-2.5 text-sm",
+        "w-full rounded-xl border px-3.5 py-2.5 text-sm",
         variantClasses[variant],
         className,
       )}

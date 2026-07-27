@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
+import { PageContent } from "@/components/ui/page-content";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import { createUser } from "@/lib/admin-api";
@@ -46,7 +47,7 @@ export default function NewUserPage() {
   }
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
+    <PageContent variant="form">
       <PageHeader
         eyebrow="Contas"
         title="Nova conta"
@@ -120,6 +121,6 @@ export default function NewUserPage() {
           {mutation.isPending ? "Criando…" : "Criar conta"}
         </Button>
       </Card>
-    </div>
+    </PageContent>
   );
 }

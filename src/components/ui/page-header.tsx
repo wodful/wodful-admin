@@ -23,32 +23,36 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <header className={cn("space-y-4", className)}>
+    <header className={cn("space-y-3", className)}>
       {backHref ? (
         <Link
           href={backHref}
-          className="inline-flex min-h-[44px] cursor-pointer items-center text-sm font-medium text-gray-500 transition-colors hover:text-primary"
+          className="inline-flex min-h-[40px] cursor-pointer items-center text-sm font-medium text-gray-500 transition-colors hover:text-primary"
         >
           ← {backLabel}
         </Link>
       ) : null}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="space-y-2">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-1.5">
           {eyebrow ? (
-            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
               {eyebrow}
             </p>
           ) : null}
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-[1.75rem]">
             {title}
           </h1>
           {description ? (
-            <p className="max-w-2xl text-sm leading-relaxed text-gray-500 sm:text-base">
+            <p className="max-w-2xl text-sm leading-relaxed text-gray-500 sm:text-[0.95rem]">
               {description}
             </p>
           ) : null}
         </div>
-        {actions ? <div className="flex shrink-0 gap-2">{actions}</div> : null}
+        {actions ? (
+          <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            {actions}
+          </div>
+        ) : null}
       </div>
     </header>
   );
