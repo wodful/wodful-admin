@@ -42,12 +42,16 @@ function PaymentsPageContent() {
   const searchId = useId();
   const statusId = useId();
   const complimentaryId = useId();
+  const subscriptionStatusId = useId();
   const [searchInput, setSearchInput] = useState("");
   const [status, setStatus] = useState<PaymentStatus | "">(
     (searchParams.get("status") as PaymentStatus | null) ?? "",
   );
   const [isComplimentary, setIsComplimentary] = useState(
     searchParams.get("isComplimentary") ?? "",
+  );
+  const [subscriptionStatus, setSubscriptionStatus] = useState(
+    searchParams.get("subscriptionStatus") ?? "",
   );
   const [page, setPage] = useState(1);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -58,7 +62,7 @@ function PaymentsPageContent() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, status, isComplimentary]);
+  }, [search, status, isComplimentary, subscriptionStatus]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -66,13 +70,23 @@ function PaymentsPageContent() {
     if (isComplimentary === "true" || isComplimentary === "false") {
       params.set("isComplimentary", isComplimentary);
     }
+    if (subscriptionStatus) {
+      params.set("subscriptionStatus", subscriptionStatus);
+    }
     const qs = params.toString();
     router.replace(qs ? `/payments?${qs}` : "/payments", { scroll: false });
-  }, [status, isComplimentary, router]);
+  }, [status, isComplimentary, subscriptionStatus, router]);
 
   const filters = useMemo(
-    () => ({ page, perPage: 20, search, status, isComplimentary }),
-    [page, search, status, isComplimentary],
+    () => ({
+      page,
+      perPage: 20,
+      search,
+      status,
+      isComplimentary,
+      subscriptionStatus,
+    }),
+    [page, search, status, isComplimentary, subscriptionStatus],
   );
 
   const { data, isLoading, isError, error, isFetching } = useQuery({
@@ -113,7 +127,7 @@ function PaymentsPageContent() {
       {exportError ? <Alert variant="error">{exportError}</Alert> : null}
 
       <Card padding="compact">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <FormField
             id={searchId}
             label="Busca"
@@ -140,6 +154,19 @@ function PaymentsPageContent() {
               <option value="PAID">Pago</option>
               <option value="CANCELLED">Cancelado</option>
               <option value="EXPIRED">Expirado</option>
+            </Select>
+          </FormField>
+
+          <FormField id={subscriptionStatusId} label="Inscrição">
+            <Select
+              id={subscriptionStatusId}
+              value={subscriptionStatus}
+              onChange={(e) => setSubscriptionStatus(e.target.value)}
+            >
+              <option value="">Todas</option>
+              <option value="WAITING">Aguardando</option>
+              <option value="APPROVED">Aprovada</option>
+              <option value="DECLINED">Recusada</option>
             </Select>
           </FormField>
 

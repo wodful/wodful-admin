@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/user-badges";
 import {
   approveSubscription,
+  createSubscriptionPaymentLink,
   declineSubscription,
   getSubscription,
   setSubscriptionComplimentary,
@@ -30,6 +31,8 @@ export default function SubscriptionDetailPage() {
   const queryClient = useQueryClient();
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [paymentLink, setPaymentLink] = useState<string | null>(null);
+  const [copyDone, setCopyDone] = useState(false);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["subscription", id],
@@ -83,6 +86,33 @@ export default function SubscriptionDetailPage() {
     },
   });
 
+  const paymentLinkMutation = useMutation({
+    mutationFn: () => createSubscriptionPaymentLink(id),
+    onSuccess: async (result) => {
+      setPaymentLink(result.paymentUrl);
+      setCopyDone(false);
+      setMessage("Link de pagamento gerado");
+      setErrorMessage(null);
+      await invalidate();
+    },
+    onError: (err) => {
+      setMessage(null);
+      setErrorMessage(
+        err instanceof ApiError ? err.message : "Erro ao gerar link",
+      );
+    },
+  });
+
+  async function copyPaymentLink() {
+    if (!paymentLink) return;
+    try {
+      await navigator.clipboard.writeText(paymentLink);
+      setCopyDone(true);
+    } catch {
+      setCopyDone(false);
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -108,7 +138,13 @@ export default function SubscriptionDetailPage() {
   const busy =
     approveMutation.isPending ||
     declineMutation.isPending ||
-    complimentaryMutation.isPending;
+    complimentaryMutation.isPending ||
+    paymentLinkMutation.isPending;
+
+  const canCreatePaymentLink =
+    !data.isComplimentary &&
+    !data.paidOnline &&
+    (data.status === "WAITING" || data.status === "APPROVED");
 
   return (
     <div className="space-y-6">
@@ -150,7 +186,34 @@ export default function SubscriptionDetailPage() {
           >
             {data.isComplimentary ? "Remover cortesia" : "Marcar cortesia"}
           </Button>
+          <Button
+            variant="secondary"
+            loading={paymentLinkMutation.isPending}
+            disabled={busy || !canCreatePaymentLink}
+            onClick={() => paymentLinkMutation.mutate()}
+          >
+            Criar novo link
+          </Button>
         </div>
+
+        {paymentLink ? (
+          <div className="mt-4 space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <p className="text-sm font-medium text-gray-900">
+              Link de pagamento
+            </p>
+            <a
+              href={paymentLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block break-all text-sm text-primary underline-offset-2 hover:underline"
+            >
+              {paymentLink}
+            </a>
+            <Button variant="secondary" onClick={copyPaymentLink}>
+              {copyDone ? "Copiado" : "Copiar link"}
+            </Button>
+          </div>
+        ) : null}
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">

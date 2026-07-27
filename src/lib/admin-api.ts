@@ -254,6 +254,13 @@ export async function setSubscriptionComplimentary(
   });
 }
 
+export async function createSubscriptionPaymentLink(id: string) {
+  return apiRequest<{ paymentId: string; paymentUrl: string }>(
+    `/admin/subscriptions/${id}/payment-link`,
+    { method: "POST" },
+  );
+}
+
 export async function listPayments(params: {
   page?: number;
   perPage?: number;
@@ -261,6 +268,7 @@ export async function listPayments(params: {
   championshipId?: string;
   search?: string;
   isComplimentary?: string;
+  subscriptionStatus?: SubscriptionStatus | "";
 }) {
   return apiRequest<PaginatedResponse<PaymentListItem>>(
     `/admin/payments${buildQuery(params)}`,
