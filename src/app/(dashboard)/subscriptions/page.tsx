@@ -54,6 +54,7 @@ function SubscriptionsPageContent() {
   const [status, setStatus] = useState<SubscriptionStatus | "">(
     (searchParams.get("status") as SubscriptionStatus | null) ?? "",
   );
+  const championshipId = searchParams.get("championshipId") ?? "";
   const [paymentOrigin, setPaymentOrigin] = useState<
     SubscriptionPaymentOrigin | ""
   >("");
@@ -65,20 +66,28 @@ function SubscriptionsPageContent() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, status, paymentOrigin]);
+  }, [search, status, paymentOrigin, championshipId]);
 
   useEffect(() => {
     const params = new URLSearchParams();
     if (status) params.set("status", status);
+    if (championshipId) params.set("championshipId", championshipId);
     const qs = params.toString();
     router.replace(qs ? `/subscriptions?${qs}` : "/subscriptions", {
       scroll: false,
     });
-  }, [status, router]);
+  }, [status, championshipId, router]);
 
   const filters = useMemo(
-    () => ({ page, perPage: 20, search, status, paymentOrigin }),
-    [page, search, status, paymentOrigin],
+    () => ({
+      page,
+      perPage: 20,
+      search,
+      status,
+      paymentOrigin,
+      championshipId: championshipId || undefined,
+    }),
+    [page, search, status, paymentOrigin, championshipId],
   );
 
   const { data, isLoading, isError, error, isFetching } = useQuery({
@@ -94,7 +103,25 @@ function SubscriptionsPageContent() {
       <PageHeader
         eyebrow="Operação"
         title="Inscrições"
-        description="Filtre, revise e gerencie inscrições da plataforma."
+        description={
+          championshipId
+            ? "Filtrando inscrições deste evento."
+            : "Filtre, revise e gerencie inscrições da plataforma."
+        }
+        actions={
+          championshipId ? (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                router.replace(
+                  status ? `/subscriptions?status=${status}` : "/subscriptions",
+                );
+              }}
+            >
+              Limpar filtro de evento
+            </Button>
+          ) : null
+        }
       />
 
       <Card padding="compact">

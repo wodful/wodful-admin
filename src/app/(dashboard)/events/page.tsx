@@ -40,6 +40,7 @@ function EventsPageContent() {
   const statusId = useId();
   const [searchInput, setSearchInput] = useState("");
   const [isActive, setIsActive] = useState(searchParams.get("isActive") ?? "");
+  const userId = searchParams.get("userId") ?? "";
   const [page, setPage] = useState(1);
 
   const debouncedSearch = useDebouncedValue(searchInput.trim(), 300);
@@ -48,18 +49,25 @@ function EventsPageContent() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, isActive]);
+  }, [search, isActive, userId]);
 
   useEffect(() => {
     const params = new URLSearchParams();
     if (isActive) params.set("isActive", isActive);
+    if (userId) params.set("userId", userId);
     const qs = params.toString();
     router.replace(qs ? `/events?${qs}` : "/events", { scroll: false });
-  }, [isActive, router]);
+  }, [isActive, userId, router]);
 
   const filters = useMemo(
-    () => ({ page, perPage: 20, search, isActive }),
-    [page, search, isActive],
+    () => ({
+      page,
+      perPage: 20,
+      search,
+      isActive,
+      userId: userId || undefined,
+    }),
+    [page, search, isActive, userId],
   );
 
   const { data, isLoading, isError, error, isFetching } = useQuery({
@@ -75,7 +83,25 @@ function EventsPageContent() {
       <PageHeader
         eyebrow="Operação"
         title="Eventos"
-        description="Busque campeonatos e abra o detalhe para financeiro e suporte."
+        description={
+          userId
+            ? "Filtrando eventos desta conta."
+            : "Busque campeonatos e abra o detalhe para financeiro e suporte."
+        }
+        actions={
+          userId ? (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                router.replace(
+                  isActive ? `/events?isActive=${isActive}` : "/events",
+                );
+              }}
+            >
+              Limpar filtro de conta
+            </Button>
+          ) : null
+        }
       />
 
       <Card padding="compact">

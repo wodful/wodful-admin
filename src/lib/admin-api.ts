@@ -279,20 +279,16 @@ export async function getPayment(id: string) {
   return apiRequest<PaymentDetail>(`/admin/payments/${id}`);
 }
 
-export async function exportPayments(params: {
-  status?: PaymentStatus | "";
-  championshipId?: string;
-  from?: string;
-  to?: string;
-}) {
+async function downloadCsv(
+  path: string,
+  filename: string,
+  errorMessage: string,
+) {
   const token = getToken();
-  const response = await fetch(
-    `${baseUrl}/admin/payments/export${buildQuery(params)}`,
-    {
-      method: "GET",
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    },
-  );
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: "GET",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
 
   if (!response.ok) {
     const data = (await response.json().catch(() => ({}))) as {
@@ -301,18 +297,47 @@ export async function exportPayments(params: {
     if (response.status === 401) {
       throw new ApiError(data.message ?? "Unauthorized", 401);
     }
-    throw new ApiError(data.message ?? "Falha ao exportar pagamentos", response.status);
+    throw new ApiError(data.message ?? errorMessage, response.status);
   }
 
   const blob = await response.blob();
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = "payments.csv";
+  anchor.download = filename;
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
   URL.revokeObjectURL(url);
+}
+
+export async function exportPayments(params: {
+  status?: PaymentStatus | "";
+  championshipId?: string;
+  from?: string;
+  to?: string;
+}) {
+  return downloadCsv(
+    `/admin/payments/export${buildQuery(params)}`,
+    "payments.csv",
+    "Falha ao exportar pagamentos",
+  );
+}
+
+export async function exportChampionshipAthletes(championshipId: string) {
+  return downloadCsv(
+    `/admin/championships/${championshipId}/exports/athletes`,
+    "athletes.csv",
+    "Falha ao exportar atletas",
+  );
+}
+
+export async function exportChampionshipContacts(championshipId: string) {
+  return downloadCsv(
+    `/admin/championships/${championshipId}/exports/contacts`,
+    "contacts.csv",
+    "Falha ao exportar contatos",
+  );
 }
 
 export async function getAdminHealth() {
