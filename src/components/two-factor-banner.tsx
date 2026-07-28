@@ -17,25 +17,24 @@ export function TwoFactorRecommendationBanner() {
   return (
     <div
       role="status"
-      className="border-t border-primary/15 bg-primary/[0.06] px-4 py-3 sm:px-6 lg:px-8"
+      className="border-t border-gray-200 bg-white px-4 py-2.5 sm:px-6 lg:px-8"
     >
-      <div className="mx-auto flex max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-3">
-          <span className="mt-0.5 hidden text-primary sm:inline" aria-hidden>
+      <div className="mx-auto flex max-w-6xl flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex gap-2.5">
+          <span className="mt-0.5 hidden text-gray-400 sm:inline" aria-hidden>
             <IconSecurity />
           </span>
-          <p className="text-sm leading-relaxed text-gray-700">
-            <span className="font-semibold text-gray-900">
-              Recomendamos ativar o 2FA.
-            </span>{" "}
-            Não é obrigatório, mas protege o painel mesmo se a senha vazar.
+          <p className="text-sm leading-relaxed text-gray-600">
+            <span className="font-medium text-gray-800">Ative o 2FA</span>
+            {" — "}
+            recomendado para proteger o painel.
           </p>
         </div>
         <Link
           href="/account/security"
-          className="inline-flex min-h-[40px] shrink-0 items-center justify-center rounded-lg bg-primary px-3.5 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
+          className="inline-flex min-h-[36px] shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-800 transition-colors hover:border-primary/40 hover:text-primary"
         >
-          Ativar 2FA
+          Configurar
         </Link>
       </div>
     </div>

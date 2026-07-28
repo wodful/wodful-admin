@@ -18,7 +18,7 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { exportPayments, listPayments } from "@/lib/admin-api";
 import { ApiError } from "@/lib/api";
 import { formatDateTime, formatMoney } from "@/lib/format";
-import type { PaymentStatus } from "@/lib/types";
+import type { PaymentStatus, SubscriptionStatus } from "@/lib/types";
 
 const SEARCH_MIN_CHARS = 3;
 
@@ -50,9 +50,9 @@ function PaymentsPageContent() {
   const [isComplimentary, setIsComplimentary] = useState(
     searchParams.get("isComplimentary") ?? "",
   );
-  const [subscriptionStatus, setSubscriptionStatus] = useState(
-    searchParams.get("subscriptionStatus") ?? "",
-  );
+  const [subscriptionStatus, setSubscriptionStatus] = useState<
+    SubscriptionStatus | ""
+  >((searchParams.get("subscriptionStatus") as SubscriptionStatus | null) ?? "");
   const [page, setPage] = useState(1);
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -161,7 +161,9 @@ function PaymentsPageContent() {
             <Select
               id={subscriptionStatusId}
               value={subscriptionStatus}
-              onChange={(e) => setSubscriptionStatus(e.target.value)}
+              onChange={(e) =>
+                setSubscriptionStatus(e.target.value as SubscriptionStatus | "")
+              }
             >
               <option value="">Todas</option>
               <option value="WAITING">Aguardando</option>

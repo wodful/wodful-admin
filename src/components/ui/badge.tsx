@@ -2,7 +2,13 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/cn";
 
-type BadgeVariant = "default" | "primary" | "success" | "muted" | "danger";
+type BadgeVariant =
+  | "default"
+  | "primary"
+  | "success"
+  | "muted"
+  | "danger"
+  | "warning";
 
 const variantClasses: Record<BadgeVariant, string> = {
   default: "border-gray-200 bg-gray-100 text-gray-700",
@@ -10,6 +16,7 @@ const variantClasses: Record<BadgeVariant, string> = {
   success: "border-emerald-200 bg-emerald-50 text-emerald-700",
   muted: "border-gray-200 bg-gray-50 text-gray-500",
   danger: "border-red-200 bg-red-50 text-red-700",
+  warning: "border-amber-200 bg-amber-50 text-amber-900",
 };
 
 type BadgeProps = {
@@ -18,7 +25,11 @@ type BadgeProps = {
   className?: string;
 };
 
-export function Badge({ children, variant = "default", className }: BadgeProps) {
+export function Badge({
+  children,
+  variant = "default",
+  className,
+}: BadgeProps) {
   return (
     <span
       className={cn(

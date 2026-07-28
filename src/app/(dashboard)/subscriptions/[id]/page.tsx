@@ -9,6 +9,7 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { PageContent } from "@/components/ui/page-content";
 import { PageHeader } from "@/components/ui/page-header";
 import { FormSkeleton, Skeleton } from "@/components/ui/skeleton";
 import {
@@ -24,6 +25,7 @@ import {
 } from "@/lib/admin-api";
 import { ApiError } from "@/lib/api";
 import { formatDateTime, formatMoney } from "@/lib/format";
+import type { SubscriptionDetail } from "@/lib/types";
 
 export default function SubscriptionDetailPage() {
   const params = useParams<{ id: string }>();
@@ -141,60 +143,199 @@ export default function SubscriptionDetailPage() {
     complimentaryMutation.isPending ||
     paymentLinkMutation.isPending;
 
+  const isWaiting = data.status === "WAITING";
+  const isApproved = data.status === "APPROVED";
+  const isDeclined = data.status === "DECLINED";
+
   const canCreatePaymentLink =
     !data.isComplimentary &&
     !data.paidOnline &&
-    (data.status === "WAITING" || data.status === "APPROVED");
+    (isWaiting || isApproved);
+
+  const unpaidApproved =
+    isApproved && !data.paidOnline && !data.isComplimentary;
+
+  const phoneDigits = data.responsiblePhone?.replace(/\D/g, "") ?? "";
 
   return (
-    <div className="space-y-6">
+    <PageContent>
       <PageHeader
         eyebrow="Inscrições"
         title={data.nickname}
-        description={data.responsibleName}
         backHref="/subscriptions"
-        actions={<SubscriptionStatusBadge status={data.status} />}
+        badges={
+          <>
+            <SubscriptionStatusBadge status={data.status} />
+            {data.isComplimentary ? (
+              <Badge variant="primary">Cortesia</Badge>
+            ) : null}
+            {data.paidOnline ? (
+              <Badge variant="success">Pago online</Badge>
+            ) : null}
+          </>
+        }
+        description={
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="font-medium text-gray-700">
+              {data.responsibleName}
+            </span>
+            <span className="text-gray-300" aria-hidden>
+              ·
+            </span>
+            <a
+              href={`mailto:${data.responsibleEmail}`}
+              className="text-primary underline-offset-2 hover:underline"
+            >
+              {data.responsibleEmail}
+            </a>
+            {phoneDigits ? (
+              <>
+                <span className="text-gray-300" aria-hidden>
+                  ·
+                </span>
+                <a
+                  href={`tel:+${phoneDigits}`}
+                  className="text-primary underline-offset-2 hover:underline"
+                >
+                  {data.responsiblePhone}
+                </a>
+              </>
+            ) : null}
+          </p>
+        }
       />
 
       {message ? <Alert variant="success">{message}</Alert> : null}
       {errorMessage ? <Alert variant="error">{errorMessage}</Alert> : null}
 
-      <Card title="Ações">
-        <div className="flex flex-wrap gap-2">
-          <Button
-            loading={approveMutation.isPending}
-            disabled={busy || data.status === "APPROVED"}
-            onClick={() => approveMutation.mutate()}
-          >
-            Aprovar
-          </Button>
-          <Button
-            variant="danger"
-            loading={declineMutation.isPending}
-            disabled={busy || data.status === "DECLINED"}
-            onClick={() => declineMutation.mutate()}
-          >
-            Recusar
-          </Button>
-          <Button
-            variant="secondary"
-            loading={complimentaryMutation.isPending}
-            disabled={busy}
-            onClick={() =>
-              complimentaryMutation.mutate(!data.isComplimentary)
-            }
-          >
-            {data.isComplimentary ? "Remover cortesia" : "Marcar cortesia"}
-          </Button>
-          <Button
-            variant="secondary"
-            loading={paymentLinkMutation.isPending}
-            disabled={busy || !canCreatePaymentLink}
-            onClick={() => paymentLinkMutation.mutate()}
-          >
-            Criar novo link
-          </Button>
-        </div>
+      {unpaidApproved ? (
+        <Card
+          padding="compact"
+          className="border-amber-200/80 bg-amber-50/50"
+          role="status"
+        >
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <p className="font-medium text-gray-900">
+                Aprovada sem pagamento online
+              </p>
+              <p className="text-sm text-gray-600">
+                Estimado {formatMoney(data.amountEstimated)} · pago{" "}
+                {formatMoney(data.amountPaid)}. Gere um link ou marque
+                cortesia.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                loading={paymentLinkMutation.isPending}
+                disabled={busy || !canCreatePaymentLink}
+                onClick={() => paymentLinkMutation.mutate()}
+              >
+                Criar link
+              </Button>
+              <Button
+                variant="secondary"
+                loading={complimentaryMutation.isPending}
+                disabled={busy}
+                onClick={() => complimentaryMutation.mutate(true)}
+              >
+                Marcar cortesia
+              </Button>
+            </div>
+          </div>
+        </Card>
+      ) : null}
+
+      {isWaiting ? (
+        <Card title="Decisão" padding="compact">
+          <p className="mb-3 text-sm text-gray-500">
+            Aprovar libera o atleta; recusar encerra a inscrição.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              loading={approveMutation.isPending}
+              disabled={busy}
+              onClick={() => approveMutation.mutate()}
+            >
+              Aprovar
+            </Button>
+            <Button
+              variant="danger"
+              loading={declineMutation.isPending}
+              disabled={busy}
+              onClick={() => declineMutation.mutate()}
+            >
+              Recusar
+            </Button>
+          </div>
+        </Card>
+      ) : null}
+
+      {isDeclined ? (
+        <Card padding="compact" className="border-gray-200 bg-gray-50/80">
+          <p className="text-sm text-gray-600">
+            Inscrição recusada. Você pode aprovar novamente se o caso for
+            reaberto.
+          </p>
+          <div className="mt-3">
+            <Button
+              loading={approveMutation.isPending}
+              disabled={busy}
+              onClick={() => approveMutation.mutate()}
+            >
+              Aprovar novamente
+            </Button>
+          </div>
+        </Card>
+      ) : null}
+
+      <Card title="Financeiro" padding="compact">
+        <dl className="mb-4 grid gap-3 text-sm sm:grid-cols-3">
+          <div>
+            <dt className="text-xs text-gray-500">Pago</dt>
+            <dd className="text-base font-semibold tabular-nums text-gray-900">
+              {formatMoney(data.amountPaid)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-gray-500">Estimado</dt>
+            <dd className="text-base font-semibold tabular-nums text-gray-900">
+              {formatMoney(data.amountEstimated)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-gray-500">Ingresso</dt>
+            <dd className="font-medium text-gray-800">
+              {data.ticket?.name ?? "—"} ·{" "}
+              {formatMoney(data.ticket?.price ?? data.ticketPrice)}
+            </dd>
+          </div>
+        </dl>
+
+        {!unpaidApproved ? (
+          <div className="flex flex-wrap gap-2 border-t border-gray-100 pt-4">
+            {canCreatePaymentLink ? (
+              <Button
+                variant="secondary"
+                loading={paymentLinkMutation.isPending}
+                disabled={busy}
+                onClick={() => paymentLinkMutation.mutate()}
+              >
+                Criar novo link
+              </Button>
+            ) : null}
+            <Button
+              variant="secondary"
+              loading={complimentaryMutation.isPending}
+              disabled={busy}
+              onClick={() =>
+                complimentaryMutation.mutate(!data.isComplimentary)
+              }
+            >
+              {data.isComplimentary ? "Remover cortesia" : "Marcar cortesia"}
+            </Button>
+          </div>
+        ) : null}
 
         {paymentLink ? (
           <div className="mt-4 space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -214,94 +355,78 @@ export default function SubscriptionDetailPage() {
             </Button>
           </div>
         ) : null}
+
+        <div className="mt-5 border-t border-gray-100 pt-4">
+          <h3 className="mb-2 text-sm font-medium text-gray-900">
+            Histórico de pagamentos
+          </h3>
+          <PaymentsList payments={data.payments} />
+        </div>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Responsável">
-          <dl className="space-y-3 text-sm">
-            <div>
-              <dt className="text-gray-500">Nome</dt>
-              <dd className="font-medium text-gray-900">{data.responsibleName}</dd>
-            </div>
-            <div>
-              <dt className="text-gray-500">E-mail</dt>
-              <dd className="text-gray-800">{data.responsibleEmail}</dd>
-            </div>
-            <div>
-              <dt className="text-gray-500">Telefone</dt>
-              <dd className="text-gray-800">{data.responsiblePhone || "—"}</dd>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {data.isComplimentary ? (
-                <Badge variant="primary">Cortesia</Badge>
-              ) : null}
-              {data.paidOnline ? (
-                <Badge variant="success">Pago online</Badge>
-              ) : null}
-            </div>
-          </dl>
-        </Card>
+      <Card title="Evento e participantes" padding="compact">
+        <dl className="mb-4 grid gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-xs text-gray-500">Evento</dt>
+            <dd className="font-medium text-gray-900">
+              {data.championship ? (
+                <Link
+                  href={`/events/${data.championship.id}`}
+                  className="text-primary underline-offset-2 hover:underline"
+                >
+                  {data.championship.name}
+                </Link>
+              ) : (
+                "—"
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-gray-500">Categoria</dt>
+            <dd className="font-medium text-gray-800">
+              {data.category?.name ?? data.ticket?.categoryName ?? "—"}
+            </dd>
+          </div>
+        </dl>
 
-        <Card title="Evento e ingresso">
-          <dl className="space-y-3 text-sm">
-            <div>
-              <dt className="text-gray-500">Evento</dt>
-              <dd className="font-medium text-gray-900">
-                {data.championship ? (
-                  <Link
-                    href={`/events/${data.championship.id}`}
-                    className="text-primary underline-offset-2 hover:underline"
-                  >
-                    {data.championship.name}
-                  </Link>
-                ) : (
-                  "—"
-                )}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-gray-500">Categoria</dt>
-              <dd className="text-gray-800">{data.category.name}</dd>
-            </div>
-            <div>
-              <dt className="text-gray-500">Ingresso</dt>
-              <dd className="text-gray-800">
-                {data.ticket?.name ?? "—"} ·{" "}
-                {formatMoney(data.ticket?.price ?? data.ticketPrice)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-gray-500">Valores</dt>
-              <dd className="text-gray-800">
-                Pago: {formatMoney(data.amountPaid)} · Estimado:{" "}
-                {formatMoney(data.amountEstimated)}
-              </dd>
-            </div>
-          </dl>
-        </Card>
-      </div>
-
-      <Card title="Participantes">
         {data.participants.length === 0 ? (
           <p className="text-sm text-gray-500">Nenhum participante.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-lg border border-gray-100">
             <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-gray-200 text-gray-500">
+              <caption className="sr-only">Participantes da inscrição</caption>
+              <thead className="border-b border-gray-100 bg-gray-50 text-gray-500">
                 <tr>
-                  <th className="px-2 py-2 font-medium">Nome</th>
-                  <th className="px-2 py-2 font-medium">Box</th>
-                  <th className="px-2 py-2 font-medium">Cidade</th>
-                  <th className="px-2 py-2 font-medium">Camisa</th>
+                  <th scope="col" className="px-3 py-2 font-medium">
+                    Nome
+                  </th>
+                  <th scope="col" className="px-3 py-2 font-medium">
+                    Box
+                  </th>
+                  <th scope="col" className="px-3 py-2 font-medium">
+                    Cidade
+                  </th>
+                  <th scope="col" className="px-3 py-2 font-medium">
+                    Camisa
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {data.participants.map((p) => (
-                  <tr key={p.id} className="border-b border-gray-100 last:border-0">
-                    <td className="px-2 py-2 font-medium">{p.name}</td>
-                    <td className="px-2 py-2">{p.affiliation || "—"}</td>
-                    <td className="px-2 py-2">{p.city || "—"}</td>
-                    <td className="px-2 py-2">{p.tShirtSize || "—"}</td>
+                  <tr
+                    key={p.id}
+                    className="border-b border-gray-50 last:border-0"
+                  >
+                    <td className="px-3 py-2 font-medium text-gray-900">
+                      {p.name}
+                    </td>
+                    <td className="px-3 py-2 text-gray-700">
+                      {p.affiliation || "—"}
+                    </td>
+                    <td className="px-3 py-2 text-gray-700">{p.city || "—"}</td>
+                    <td className="px-3 py-2 text-gray-700">
+                      {p.tShirtSize || "—"}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -309,34 +434,42 @@ export default function SubscriptionDetailPage() {
           </div>
         )}
       </Card>
+    </PageContent>
+  );
+}
 
-      <Card title="Pagamentos">
-        {data.payments.length === 0 ? (
-          <p className="text-sm text-gray-500">Nenhum pagamento.</p>
-        ) : (
-          <ul className="divide-y divide-gray-100">
-            {data.payments.map((payment) => (
-              <li
-                key={payment.id}
-                className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm"
-              >
-                <div>
-                  <Link
-                    href={`/payments/${payment.id}`}
-                    className="font-medium text-primary underline-offset-2 hover:underline"
-                  >
-                    {formatMoney(payment.amountFinal)}
-                  </Link>
-                  <p className="text-xs text-gray-500">
-                    {formatDateTime(payment.createdAt)} · {payment.provider}
-                  </p>
-                </div>
-                <PaymentStatusBadge status={payment.status} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-    </div>
+function PaymentsList({
+  payments,
+}: {
+  payments: SubscriptionDetail["payments"];
+}) {
+  if (payments.length === 0) {
+    return (
+      <p className="text-sm text-gray-500">Nenhum pagamento registrado.</p>
+    );
+  }
+
+  return (
+    <ul className="divide-y divide-gray-100 rounded-lg border border-gray-100">
+      {payments.map((payment) => (
+        <li
+          key={payment.id}
+          className="flex flex-wrap items-center justify-between gap-3 px-3 py-2.5 text-sm"
+        >
+          <div>
+            <Link
+              href={`/payments/${payment.id}`}
+              className="font-medium text-primary underline-offset-2 hover:underline"
+            >
+              {formatMoney(payment.amountFinal)}
+            </Link>
+            <p className="text-xs text-gray-500">
+              {formatDateTime(payment.createdAt)} · {payment.provider}
+            </p>
+          </div>
+          <PaymentStatusBadge status={payment.status} />
+        </li>
+      ))}
+    </ul>
   );
 }

@@ -86,23 +86,15 @@ export type DashboardKpis = {
   paymentsPending: number;
 };
 
-export type DashboardSeriesPoint = {
-  date: string;
-  count: number;
-};
-
 export type DashboardAlert = {
   type: string;
   message: string;
+  actionLabel: string;
   count: number;
 };
 
 export type AdminDashboard = {
   kpis: DashboardKpis;
-  series: {
-    newEvents7d: DashboardSeriesPoint[];
-    newSubscriptions7d: DashboardSeriesPoint[];
-  };
   alerts: DashboardAlert[];
 };
 
@@ -130,6 +122,7 @@ export type ChampionshipListItem = {
     approved: number;
     waiting: number;
     declined: number;
+    pendingPayments: number;
     total: number;
     revenuePaid: number;
     revenueManual: number;

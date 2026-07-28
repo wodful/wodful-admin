@@ -2,30 +2,56 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import type { FormEvent } from "react";
-import { useEffect, useId, useState } from "react";
+import { Suspense, useEffect, useId, useState } from "react";
 
+import { EventNav, isEventTabId, type EventTabId } from "@/components/event-nav";
+import { SettlementReportCard } from "@/components/settlement-report-card";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
+import { PageContent } from "@/components/ui/page-content";
 import { PageHeader } from "@/components/ui/page-header";
 import { FormSkeleton, Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/user-badges";
 import {
+  exportChampionshipAthletes,
+  exportChampionshipContacts,
   getChampionship,
   updateChampionshipFees,
 } from "@/lib/admin-api";
-import { SettlementReportCard } from "@/components/settlement-report-card";
 import { ApiError } from "@/lib/api";
 import { formatDate, formatMoney, siteEventUrl } from "@/lib/format";
+import type { ChampionshipDetail } from "@/lib/types";
+import { cn } from "@/lib/cn";
 
 export default function EventDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-40 w-full rounded-xl" />
+        </div>
+      }
+    >
+      <EventDetailPageContent />
+    </Suspense>
+  );
+}
+
+function EventDetailPageContent() {
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const id = params.id;
+  const rawTab = searchParams.get("tab");
+  const tab: EventTabId = isEventTabId(rawTab) ? rawTab : "overview";
+
   const queryClient = useQueryClient();
   const wodfulFeeId = useId();
   const mpFeeId = useId();
@@ -33,6 +59,8 @@ export default function EventDetailPage() {
   const [mpFeePercentEstimate, setMpFeePercentEstimate] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["championship", id],
@@ -54,7 +82,7 @@ export default function EventDetailPage() {
       updateChampionshipFees(id, {
         wodfulFeePercent:
           wodfulFeePercent === ""
-            ? data?.defaultWodfulFeePercent ?? 12
+            ? (data?.defaultWodfulFeePercent ?? 12)
             : Number(wodfulFeePercent),
         mpFeePercentEstimate:
           mpFeePercentEstimate === "" ? null : Number(mpFeePercentEstimate),
@@ -64,6 +92,9 @@ export default function EventDetailPage() {
       setErrorMessage(null);
       await queryClient.invalidateQueries({ queryKey: ["championship", id] });
       await queryClient.invalidateQueries({ queryKey: ["championships"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["championship-settlement", id],
+      });
     },
     onError: (err) => {
       setMessage(null);
@@ -71,6 +102,34 @@ export default function EventDetailPage() {
         err instanceof ApiError
           ? err.message
           : "Erro ao atualizar financeiro",
+      );
+    },
+  });
+
+  const athletesExport = useMutation({
+    mutationFn: () => exportChampionshipAthletes(id),
+    onSuccess: () => {
+      setExportError(null);
+      setExportMessage("Relatório de atletas exportado");
+    },
+    onError: (err) => {
+      setExportMessage(null);
+      setExportError(
+        err instanceof ApiError ? err.message : "Falha ao exportar atletas",
+      );
+    },
+  });
+
+  const contactsExport = useMutation({
+    mutationFn: () => exportChampionshipContacts(id),
+    onSuccess: () => {
+      setExportError(null);
+      setExportMessage("Relatório de contatos exportado");
+    },
+    onError: (err) => {
+      setExportMessage(null);
+      setExportError(
+        err instanceof ApiError ? err.message : "Falha ao exportar contatos",
       );
     },
   });
@@ -87,6 +146,7 @@ export default function EventDetailPage() {
           <Skeleton className="h-4 w-16" />
           <Skeleton className="h-8 w-64" />
         </div>
+        <Skeleton className="h-10 w-full" />
         <Card>
           <FormSkeleton />
         </Card>
@@ -106,53 +166,212 @@ export default function EventDetailPage() {
   const publicUrl = siteEventUrl(data.accessCode);
 
   return (
-    <div className="space-y-6">
+    <PageContent>
       <PageHeader
         eyebrow="Eventos"
         title={data.name}
-        description={`${data.accessCode} · ${formatDate(data.startDate)} – ${formatDate(data.endDate)}`}
+        description={
+          <div className="space-y-1">
+            <p>
+              {data.accessCode} · {formatDate(data.startDate)} –{" "}
+              {formatDate(data.endDate)}
+            </p>
+            {!data.isActive ? (
+              <p className="text-amber-800">
+                Evento privado — não aparece na listagem pública.
+              </p>
+            ) : null}
+          </div>
+        }
         backHref="/events"
-        actions={<StatusBadge isActive={data.isActive} />}
+        badges={<StatusBadge isActive={data.isActive} />}
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              loading={athletesExport.isPending}
+              disabled={contactsExport.isPending}
+              onClick={() => athletesExport.mutate()}
+            >
+              Exportar atletas
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              loading={contactsExport.isPending}
+              disabled={athletesExport.isPending}
+              onClick={() => contactsExport.mutate()}
+            >
+              Exportar contatos
+            </Button>
+          </>
+        }
       />
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <a
           href={publicUrl}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex min-h-[44px] items-center text-sm font-medium text-primary underline-offset-2 hover:underline"
+          className="font-medium text-primary underline-offset-2 hover:underline"
         >
           Abrir página pública
         </a>
         {data.organizer ? (
-          <Link
-            href={`/users/${data.organizer.id}`}
-            className="inline-flex min-h-[44px] items-center text-sm font-medium text-gray-600 underline-offset-2 hover:underline"
-          >
-            Ver organizador
-          </Link>
-        ) : null}
+          <span className="text-gray-600">
+            Organizador:{" "}
+            <Link
+              href={`/users/${data.organizer.id}`}
+              className="font-medium text-primary underline-offset-2 hover:underline"
+            >
+              {data.organizer.name}
+            </Link>
+            {!data.organizer.isActive ? (
+              <span className="ml-1.5 text-amber-800">(inativo)</span>
+            ) : null}
+          </span>
+        ) : (
+          <span className="text-gray-500">Sem organizador</span>
+        )}
       </div>
 
-      {message ? <Alert variant="success">{message}</Alert> : null}
-      {errorMessage ? <Alert variant="error">{errorMessage}</Alert> : null}
+      <EventNav eventId={id} />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric label="Aprovadas" value={summary.subscriptionsApproved} />
-        <Metric label="Aguardando" value={summary.subscriptionsWaiting} />
-        <Metric label="Receita paga" value={formatMoney(summary.revenuePaid)} />
+      {exportMessage ? <Alert variant="success">{exportMessage}</Alert> : null}
+      {exportError ? <Alert variant="error">{exportError}</Alert> : null}
+      {message && tab === "finance" ? (
+        <Alert variant="success">{message}</Alert>
+      ) : null}
+      {errorMessage && tab === "finance" ? (
+        <Alert variant="error">{errorMessage}</Alert>
+      ) : null}
+
+      {tab === "overview" ? (
+        <OverviewTab eventId={id} summary={summary} />
+      ) : null}
+
+      {tab === "finance" ? (
+        <FinanceTab
+          data={data}
+          eventId={id}
+          wodfulFeeId={wodfulFeeId}
+          mpFeeId={mpFeeId}
+          wodfulFeePercent={wodfulFeePercent}
+          mpFeePercentEstimate={mpFeePercentEstimate}
+          setWodfulFeePercent={setWodfulFeePercent}
+          setMpFeePercentEstimate={setMpFeePercentEstimate}
+          onSaveFees={onSaveFees}
+          saving={feesMutation.isPending}
+        />
+      ) : null}
+
+      {tab === "tickets" ? <TicketsTab data={data} eventId={id} /> : null}
+
+      {tab === "coupons" ? <CouponsTab data={data} /> : null}
+    </PageContent>
+  );
+}
+
+function OverviewTab({
+  eventId,
+  summary,
+}: {
+  eventId: string;
+  summary: ChampionshipDetail["analytics"]["summary"];
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricLink
+          label="Aprovadas"
+          value={summary.subscriptionsApproved}
+          href={`/subscriptions?championshipId=${eventId}&status=APPROVED`}
+          showLink={summary.subscriptionsApproved > 0}
+        />
+        <MetricLink
+          label="Aguardando"
+          value={summary.subscriptionsWaiting}
+          href={`/subscriptions?championshipId=${eventId}&status=WAITING`}
+          tone={summary.subscriptionsWaiting > 0 ? "warning" : "default"}
+          showLink={summary.subscriptionsWaiting > 0}
+        />
+        <Metric
+          label="Receita paga"
+          value={formatMoney(summary.revenuePaid)}
+        />
         <Metric
           label="Ingressos"
           value={`${summary.ticketsSold}/${summary.ticketsCapacity}`}
         />
       </div>
 
+      <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-gray-200/80 pt-4 text-sm">
+        <Link
+          href={`/subscriptions?championshipId=${eventId}`}
+          className="font-medium text-primary transition-colors hover:underline"
+        >
+          Todas as inscrições do evento
+        </Link>
+      </div>
+
+      {summary.subscriptionsComplimentary > 0 ||
+      summary.discountTotal > 0 ||
+      summary.couponsRedeemed > 0 ? (
+        <dl className="grid gap-3 rounded-xl border border-gray-200/80 bg-white p-4 text-sm sm:grid-cols-3">
+          {summary.subscriptionsComplimentary > 0 ? (
+            <Stat
+              label="Cortesia"
+              value={summary.subscriptionsComplimentary}
+            />
+          ) : null}
+          {summary.discountTotal > 0 ? (
+            <Stat
+              label="Descontos"
+              value={formatMoney(summary.discountTotal)}
+            />
+          ) : null}
+          {summary.couponsRedeemed > 0 ? (
+            <Stat label="Cupons resgatados" value={summary.couponsRedeemed} />
+          ) : null}
+        </dl>
+      ) : null}
+    </div>
+  );
+}
+
+function FinanceTab({
+  data,
+  eventId,
+  wodfulFeeId,
+  mpFeeId,
+  wodfulFeePercent,
+  mpFeePercentEstimate,
+  setWodfulFeePercent,
+  setMpFeePercentEstimate,
+  onSaveFees,
+  saving,
+}: {
+  data: ChampionshipDetail;
+  eventId: string;
+  wodfulFeeId: string;
+  mpFeeId: string;
+  wodfulFeePercent: string;
+  mpFeePercentEstimate: string;
+  setWodfulFeePercent: (value: string) => void;
+  setMpFeePercentEstimate: (value: string) => void;
+  onSaveFees: (event: FormEvent) => void;
+  saving: boolean;
+}) {
+  return (
+    <div className="space-y-6">
       <Card
         as="form"
-        title="Financeiro do evento"
+        title="Comissão e custos"
         description="A comissão Wodful absorve o custo do Mercado Pago — o organizador paga só a comissão sobre o bruto."
         onSubmit={onSaveFees}
         className="space-y-5"
+        padding="compact"
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField
@@ -188,7 +407,7 @@ export default function EventDetailPage() {
             />
           </FormField>
         </div>
-        <Button type="submit" loading={feesMutation.isPending}>
+        <Button type="submit" loading={saving}>
           Salvar financeiro
         </Button>
 
@@ -224,36 +443,33 @@ export default function EventDetailPage() {
         </dl>
       </Card>
 
-      <SettlementReportCard championshipId={id} />
+      <SettlementReportCard championshipId={eventId} />
+    </div>
+  );
+}
 
-      <Card title="Organizador">
-        {data.organizer ? (
-          <dl className="grid gap-3 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-gray-500">Nome</dt>
-              <dd className="font-medium text-gray-900">{data.organizer.name}</dd>
-            </div>
-            <div>
-              <dt className="text-gray-500">E-mail</dt>
-              <dd className="text-gray-800">{data.organizer.email}</dd>
-            </div>
-            <div>
-              <dt className="text-gray-500">Username</dt>
-              <dd className="text-gray-800">@{data.organizer.username}</dd>
-            </div>
-            <div>
-              <dt className="text-gray-500">Status</dt>
-              <dd>
-                <StatusBadge isActive={Boolean(data.organizer.isActive)} />
-              </dd>
-            </div>
-          </dl>
-        ) : (
-          <p className="text-sm text-gray-500">Sem organizador vinculado.</p>
-        )}
-      </Card>
+function TicketsTab({
+  data,
+  eventId,
+}: {
+  data: ChampionshipDetail;
+  eventId: string;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-gray-500">
+          Categorias e lotes configurados neste evento.
+        </p>
+        <Link
+          href={`/subscriptions?championshipId=${eventId}`}
+          className="text-sm font-medium text-primary hover:underline"
+        >
+          Ver inscrições do evento
+        </Link>
+      </div>
 
-      <Card title="Categorias e ingressos">
+      <Card title="Categorias e ingressos" padding="compact">
         <div className="space-y-5">
           {data.categories.map((category) => (
             <div key={category.id} className="space-y-2">
@@ -275,7 +491,9 @@ export default function EventDetailPage() {
                       className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm"
                     >
                       <div>
-                        <p className="font-medium text-gray-900">{ticket.name}</p>
+                        <p className="font-medium text-gray-900">
+                          {ticket.name}
+                        </p>
                         <p className="text-xs text-gray-500">
                           {ticket.subscriptionsCount}/{ticket.quantity} ·{" "}
                           {ticket.enabled ? "Ativo" : "Inativo"}
@@ -295,81 +513,140 @@ export default function EventDetailPage() {
           ) : null}
         </div>
       </Card>
-
-      <Card title="Cupons">
-        {data.coupons.length === 0 ? (
-          <p className="text-sm text-gray-500">Nenhum cupom.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-gray-200 text-gray-500">
-                <tr>
-                  <th className="px-2 py-2 font-medium">Código</th>
-                  <th className="px-2 py-2 font-medium">Tipo</th>
-                  <th className="px-2 py-2 font-medium">Valor</th>
-                  <th className="px-2 py-2 font-medium">Resgates</th>
-                  <th className="px-2 py-2 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.coupons.map((coupon) => (
-                  <tr key={coupon.id} className="border-b border-gray-100 last:border-0">
-                    <td className="px-2 py-2 font-medium">{coupon.code}</td>
-                    <td className="px-2 py-2">{coupon.type}</td>
-                    <td className="px-2 py-2">
-                      {coupon.type === "PERCENTAGE"
-                        ? `${coupon.value}%`
-                        : formatMoney(coupon.value)}
-                    </td>
-                    <td className="px-2 py-2">
-                      {coupon.redemptions}
-                      {coupon.maxRedemptions != null
-                        ? `/${coupon.maxRedemptions}`
-                        : ""}
-                    </td>
-                    <td className="px-2 py-2">
-                      <StatusBadge isActive={coupon.isActive} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
-
-      <Card
-        title="Resumo analítico"
-        description="Métricas agregadas do evento."
-      >
-        <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-          <Stat label="Atletas" value={summary.athletes} />
-          <Stat label="Online" value={summary.subscriptionsOnline} />
-          <Stat label="Cortesia" value={summary.subscriptionsComplimentary} />
-          <Stat label="Receita estimada" value={formatMoney(summary.revenueEstimated)} />
-          <Stat label="Descontos" value={formatMoney(summary.discountTotal)} />
-          <Stat label="Cupons resgatados" value={summary.couponsRedeemed} />
-        </dl>
-      </Card>
     </div>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string | number }) {
+function CouponsTab({ data }: { data: ChampionshipDetail }) {
+  return (
+    <Card title="Cupons" padding="compact">
+      {data.coupons.length === 0 ? (
+        <p className="text-sm text-gray-500">Nenhum cupom neste evento.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-left text-sm">
+            <caption className="sr-only">Cupons do evento</caption>
+            <thead className="border-b border-gray-200 text-gray-500">
+              <tr>
+                <th scope="col" className="px-2 py-2 font-medium">
+                  Código
+                </th>
+                <th scope="col" className="px-2 py-2 font-medium">
+                  Tipo
+                </th>
+                <th scope="col" className="px-2 py-2 font-medium">
+                  Valor
+                </th>
+                <th scope="col" className="px-2 py-2 font-medium">
+                  Resgates
+                </th>
+                <th scope="col" className="px-2 py-2 font-medium">
+                  Status
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.coupons.map((coupon) => (
+                <tr
+                  key={coupon.id}
+                  className="border-b border-gray-100 last:border-0"
+                >
+                  <td className="px-2 py-2 font-medium">{coupon.code}</td>
+                  <td className="px-2 py-2">{coupon.type}</td>
+                  <td className="px-2 py-2">
+                    {coupon.type === "PERCENTAGE"
+                      ? `${coupon.value}%`
+                      : formatMoney(coupon.value)}
+                  </td>
+                  <td className="px-2 py-2">
+                    {coupon.redemptions}
+                    {coupon.maxRedemptions != null
+                      ? `/${coupon.maxRedemptions}`
+                      : ""}
+                  </td>
+                  <td className="px-2 py-2">
+                    <StatusBadge isActive={coupon.isActive} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function Metric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) {
   return (
     <Card padding="compact">
       <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
         {label}
       </p>
-      <p className="mt-2 text-xl font-semibold text-gray-900">{value}</p>
+      <p className="mt-2 text-xl font-semibold tabular-nums text-gray-900">
+        {value}
+      </p>
     </Card>
   );
+}
+
+function MetricLink({
+  label,
+  value,
+  href,
+  tone = "default",
+  showLink = true,
+}: {
+  label: string;
+  value: string | number;
+  href: string;
+  tone?: "default" | "warning";
+  showLink?: boolean;
+}) {
+  const classes = cn(
+    "block rounded-xl border p-4 sm:p-4",
+    tone === "warning"
+      ? "border-amber-200/80 bg-amber-50/50"
+      : "border-gray-200/80 bg-white",
+    showLink &&
+      "transition-colors hover:border-primary/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+  );
+
+  const content = (
+    <>
+      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+        {label}
+      </p>
+      <p className="mt-2 text-xl font-semibold tabular-nums text-gray-900">
+        {value}
+      </p>
+      {showLink ? (
+        <p className="mt-1 text-xs font-medium text-primary">Ver lista →</p>
+      ) : null}
+    </>
+  );
+
+  if (showLink) {
+    return (
+      <Link href={href} className={classes}>
+        {content}
+      </Link>
+    );
+  }
+
+  return <div className={classes}>{content}</div>;
 }
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <div>
-      <dt className="text-gray-500">{label}</dt>
+      <dt className="text-xs text-gray-500">{label}</dt>
       <dd className="font-medium text-gray-900">{value}</dd>
     </div>
   );
