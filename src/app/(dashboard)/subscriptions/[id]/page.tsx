@@ -148,9 +148,7 @@ export default function SubscriptionDetailPage() {
   const isDeclined = data.status === "DECLINED";
 
   const canCreatePaymentLink =
-    !data.isComplimentary &&
-    !data.paidOnline &&
-    (isWaiting || isApproved);
+    !data.isComplimentary && !data.paidOnline && (isWaiting || isDeclined);
 
   const unpaidApproved =
     isApproved && !data.paidOnline && !data.isComplimentary;
@@ -221,18 +219,10 @@ export default function SubscriptionDetailPage() {
               </p>
               <p className="text-sm text-gray-600">
                 Estimado {formatMoney(data.amountEstimated)} · pago{" "}
-                {formatMoney(data.amountPaid)}. Gere um link ou marque
-                cortesia.
+                {formatMoney(data.amountPaid)}. Marque cortesia se for o caso.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button
-                loading={paymentLinkMutation.isPending}
-                disabled={busy || !canCreatePaymentLink}
-                onClick={() => paymentLinkMutation.mutate()}
-              >
-                Criar link
-              </Button>
               <Button
                 variant="secondary"
                 loading={complimentaryMutation.isPending}
@@ -274,10 +264,20 @@ export default function SubscriptionDetailPage() {
       {isDeclined ? (
         <Card padding="compact" className="border-gray-200 bg-gray-50/80">
           <p className="text-sm text-gray-600">
-            Inscrição recusada. Você pode aprovar novamente se o caso for
-            reaberto.
+            Inscrição recusada ou pagamento expirado. Você pode gerar um novo
+            link de pagamento (reativa a inscrição se houver vaga) ou aprovar
+            novamente.
           </p>
-          <div className="mt-3">
+          <div className="mt-3 flex flex-wrap gap-2">
+            {canCreatePaymentLink ? (
+              <Button
+                loading={paymentLinkMutation.isPending}
+                disabled={busy}
+                onClick={() => paymentLinkMutation.mutate()}
+              >
+                Criar novo link
+              </Button>
+            ) : null}
             <Button
               loading={approveMutation.isPending}
               disabled={busy}
@@ -314,7 +314,7 @@ export default function SubscriptionDetailPage() {
 
         {!unpaidApproved ? (
           <div className="flex flex-wrap gap-2 border-t border-gray-100 pt-4">
-            {canCreatePaymentLink ? (
+            {canCreatePaymentLink && isWaiting ? (
               <Button
                 variant="secondary"
                 loading={paymentLinkMutation.isPending}
