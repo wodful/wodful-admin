@@ -86,6 +86,25 @@ function currentPageLabel(pathname: string) {
   return "Wodful Admin";
 }
 
+/** Hide display name when it only repeats the email local-part. */
+function accountDisplay(user: { name?: string | null; email?: string | null }) {
+  const email = user.email?.trim() || null;
+  const name = user.name?.trim() || null;
+  if (!name) return { title: email, subtitle: null };
+  if (!email) return { title: name, subtitle: null };
+
+  const localPart = email.split("@")[0]?.toLowerCase() ?? "";
+  const nameLooksLikeEmail =
+    name.toLowerCase() === localPart ||
+    name.toLowerCase() === email.toLowerCase();
+
+  if (nameLooksLikeEmail) {
+    return { title: email, subtitle: null };
+  }
+
+  return { title: name, subtitle: email };
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, isLoading, isAuthenticated, logout } = useAuth();
   const router = useRouter();
@@ -119,6 +138,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (isLoading || !isAuthenticated) {
     return <LoadingState fullScreen label="Carregando painel…" />;
   }
+
+  const account = accountDisplay({
+    name: user?.name,
+    email: user?.email,
+  });
 
   return (
     <div className="min-h-screen bg-surface lg:flex">
@@ -196,12 +220,16 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="border-t border-white/[0.06] p-4">
           <div className="rounded-lg bg-white/[0.04] px-3 py-3">
-            <p className="truncate text-sm font-medium text-white">
-              {user?.name}
-            </p>
-            <p className="mt-0.5 truncate text-xs text-white/50">
-              {user?.email}
-            </p>
+            {account.title ? (
+              <p className="truncate text-sm font-medium text-white">
+                {account.title}
+              </p>
+            ) : null}
+            {account.subtitle ? (
+              <p className="mt-0.5 truncate text-xs text-white/50">
+                {account.subtitle}
+              </p>
+            ) : null}
           </div>
           <Button
             variant="ghost"
@@ -248,12 +276,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </p>
               </div>
             </div>
-            <div className="hidden min-w-0 text-right sm:block">
-              <p className="truncate text-sm font-medium text-gray-800">
-                {user?.name}
+            {/* Identity lives in the sidebar on desktop; compact email on smaller screens. */}
+            {account.title ? (
+              <p className="min-w-0 truncate text-right text-xs text-gray-500 lg:hidden">
+                {account.subtitle ?? account.title}
               </p>
-              <p className="truncate text-xs text-gray-500">{user?.email}</p>
-            </div>
+            ) : null}
           </div>
           <TwoFactorRecommendationBanner />
         </header>
