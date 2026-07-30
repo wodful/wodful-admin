@@ -84,6 +84,7 @@ export type DashboardKpis = {
   eventsActive: number;
   subscriptionsWaiting: number;
   paymentsPending: number;
+  subscriptionsDeclined?: number;
 };
 
 export type DashboardAlert = {
@@ -93,9 +94,24 @@ export type DashboardAlert = {
   count: number;
 };
 
+export type DashboardActivityItem = {
+  id: string;
+  kind: "recent" | "waiting_payment" | "declined";
+  nickname: string;
+  responsibleName: string;
+  responsibleEmail: string | null;
+  championshipId: string | null;
+  championshipName: string | null;
+  status: SubscriptionStatus;
+  at: string;
+  amountFinal: number | null;
+};
+
 export type AdminDashboard = {
   kpis: DashboardKpis;
   alerts: DashboardAlert[];
+  recentSubscriptions?: DashboardActivityItem[];
+  attentionItems?: DashboardActivityItem[];
 };
 
 export type OrganizerSummary = {
