@@ -12,20 +12,25 @@ import { PageContent } from "@/components/ui/page-content";
 import { PageHeader } from "@/components/ui/page-header";
 import { Section, StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  SubscriptionStatusBadge,
+} from "@/components/ui/user-badges";
 import { getDashboard, listChampionships } from "@/lib/admin-api";
-import { formatDate, formatMoney } from "@/lib/format";
+import { cn } from "@/lib/cn";
+import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import type {
   AdminDashboard,
   ChampionshipListItem,
+  DashboardActivityItem,
   DashboardAlert,
 } from "@/lib/types";
-import { cn } from "@/lib/cn";
 
 const alertHref: Record<string, string> = {
   stale_pending_payments:
     "/payments?status=PENDING&isComplimentary=false&subscriptionStatus=WAITING",
   paid_without_approved: "/payments?status=PAID&isComplimentary=false",
   cancelled_still_waiting: "/subscriptions?status=WAITING",
+  declined_unpaid: "/subscriptions?status=DECLINED",
   inactive_owner_active_event: "/events?isActive=true",
   sold_out_with_waiting: "/subscriptions?status=WAITING",
 };
@@ -42,6 +47,13 @@ function eventNeedsAttention(event: ChampionshipListItem) {
     organizerIssue,
     needsAttention: waiting > 0 || pending > 0 || organizerIssue,
   };
+}
+
+function attentionLabel(item: DashboardActivityItem) {
+  if (item.kind === "declined") {
+    return "Pagamento expirado ou recusado";
+  }
+  return "Aguardando pagamento";
 }
 
 export default function DashboardPage() {
@@ -75,6 +87,10 @@ export default function DashboardPage() {
           <Skeleton className="h-8 w-48" />
         </div>
         <Skeleton className="h-28 w-full rounded-xl" />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Skeleton className="h-64 w-full rounded-xl" />
+          <Skeleton className="h-64 w-full rounded-xl" />
+        </div>
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-24 w-full rounded-xl" />
@@ -92,11 +108,16 @@ export default function DashboardPage() {
     );
   }
 
+  const declinedCount = data.kpis.subscriptionsDeclined ?? 0;
+  const attentionItems = data.attentionItems ?? [];
+  const recentSubscriptions = data.recentSubscriptions ?? [];
+
   const isCalm = data.alerts.length === 0;
   const queuesIdle =
     isCalm &&
     data.kpis.subscriptionsWaiting === 0 &&
-    data.kpis.paymentsPending === 0;
+    data.kpis.paymentsPending === 0 &&
+    declinedCount === 0;
   const eventsWithAttention = sortedEvents.filter(
     (event) => eventNeedsAttention(event).needsAttention,
   ).length;
@@ -115,6 +136,38 @@ export default function DashboardPage() {
         activeEventsCount={sortedEvents.length}
         eventsWithAttention={eventsWithAttention}
       />
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Section
+          title="Precisa de contato"
+          description="Pagamentos pendentes ou expirados — fale com o time."
+          action={
+            <Link
+              href="/subscriptions?status=DECLINED"
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              Ver recusadas
+            </Link>
+          }
+        >
+          <AttentionList items={attentionItems} />
+        </Section>
+
+        <Section
+          title="Inscrições recentes"
+          description="Últimas entradas em qualquer evento."
+          action={
+            <Link
+              href="/subscriptions"
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              Ver todas
+            </Link>
+          }
+        >
+          <RecentList items={recentSubscriptions} />
+        </Section>
+      </div>
 
       <Section
         title="Eventos ativos"
@@ -178,7 +231,7 @@ export default function DashboardPage() {
           title="Filas"
           description="Atalhos para o que ainda precisa de ação."
         >
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
               label="Eventos ativos"
               value={data.kpis.eventsActive}
@@ -201,6 +254,13 @@ export default function DashboardPage() {
               value={data.kpis.paymentsPending}
               tone={data.kpis.paymentsPending > 0 ? "warning" : "default"}
               href="/payments?status=PENDING&isComplimentary=false&subscriptionStatus=WAITING"
+              className="sm:p-4"
+            />
+            <StatCard
+              label="Expiradas / recusadas"
+              value={declinedCount}
+              tone={declinedCount > 0 ? "warning" : "default"}
+              href="/subscriptions?status=DECLINED"
               className="sm:p-4"
             />
           </div>
@@ -320,6 +380,121 @@ function StatusPanel({
           atenção (sem alerta global).
         </p>
       ) : null}
+    </Card>
+  );
+}
+
+function AttentionList({ items }: { items: DashboardActivityItem[] }) {
+  if (items.length === 0) {
+    return (
+      <Card padding="compact">
+        <p className="font-medium text-gray-900">Nada pendente</p>
+        <p className="mt-1 text-sm text-gray-500">
+          Sem inscrições aguardando pagamento ou com cobrança expirada.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="overflow-hidden" padding="flush">
+      <ul className="divide-y divide-gray-100">
+        {items.map((item) => (
+          <li key={`${item.kind}-${item.id}`}>
+            <Link
+              href={`/subscriptions/${item.id}`}
+              className={cn(
+                "flex min-h-[64px] flex-col gap-1.5 px-4 py-3 transition-colors hover:bg-gray-50 focus-visible:bg-gray-50 focus-visible:outline-none sm:px-5",
+                item.kind === "declined" && "bg-amber-50/40",
+              )}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="truncate font-semibold text-gray-900">
+                  {item.nickname}
+                </p>
+                <Badge
+                  variant={item.kind === "declined" ? "warning" : "default"}
+                >
+                  {attentionLabel(item)}
+                </Badge>
+              </div>
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-600">
+                <span>{item.responsibleName}</span>
+                {item.championshipName ? (
+                  <span className="truncate text-gray-500">
+                    {item.championshipName}
+                  </span>
+                ) : null}
+                <span className="tabular-nums text-gray-400">
+                  {formatDateTime(item.at)}
+                </span>
+                {item.amountFinal != null ? (
+                  <span className="tabular-nums">
+                    {formatMoney(item.amountFinal)}
+                  </span>
+                ) : null}
+              </div>
+              {item.responsibleEmail ? (
+                <span className="truncate text-xs text-primary">
+                  {item.responsibleEmail}
+                </span>
+              ) : null}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+function RecentList({ items }: { items: DashboardActivityItem[] }) {
+  if (items.length === 0) {
+    return (
+      <Card padding="compact">
+        <p className="font-medium text-gray-900">Nenhuma inscrição recente</p>
+        <p className="mt-1 text-sm text-gray-500">
+          Novas entradas nos eventos aparecem aqui.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="overflow-hidden" padding="flush">
+      <ul className="divide-y divide-gray-100">
+        {items.map((item) => (
+          <li key={item.id}>
+            <Link
+              href={`/subscriptions/${item.id}`}
+              className="flex min-h-[64px] items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-gray-50 focus-visible:bg-gray-50 focus-visible:outline-none sm:px-5"
+            >
+              <div className="min-w-0 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="truncate font-semibold text-gray-900">
+                    {item.nickname}
+                  </p>
+                  <SubscriptionStatusBadge status={item.status} />
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-600">
+                  <span>{item.responsibleName}</span>
+                  {item.championshipName ? (
+                    <span className="truncate text-gray-500">
+                      {item.championshipName}
+                    </span>
+                  ) : null}
+                  <span className="tabular-nums text-gray-400">
+                    {formatDateTime(item.at)}
+                  </span>
+                </div>
+              </div>
+              <IconChevronRight
+                className="shrink-0 text-gray-400"
+                aria-hidden
+              />
+            </Link>
+          </li>
+        ))}
+      </ul>
     </Card>
   );
 }
