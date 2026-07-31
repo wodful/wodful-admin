@@ -33,6 +33,8 @@ const alertHref: Record<string, string> = {
   declined_unpaid: "/subscriptions?status=DECLINED",
   inactive_owner_active_event: "/events?isActive=true",
   sold_out_with_waiting: "/subscriptions?status=WAITING",
+  tickets_closing_soon: "/events?isActive=true",
+  tickets_opening_soon: "/events?isActive=true",
 };
 
 function eventNeedsAttention(event: ChampionshipListItem) {
@@ -295,7 +297,7 @@ function StatusPanel({
         >
           <ul className="divide-y divide-amber-100/80">
             {alerts.map((alert) => {
-              const href = alertHref[alert.type] ?? "/dashboard";
+              const href = alert.href ?? alertHref[alert.type] ?? "/dashboard";
               return (
                 <li key={`${alert.type}-${alert.message}`}>
                   <Link
