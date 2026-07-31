@@ -92,6 +92,7 @@ export type DashboardAlert = {
   message: string;
   actionLabel: string;
   count: number;
+  href?: string;
 };
 
 export type DashboardActivityItem = {
