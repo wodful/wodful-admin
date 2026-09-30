@@ -9,6 +9,8 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { FormField } from "@/components/ui/form-field";
+import { Input } from "@/components/ui/input";
 import { PageContent } from "@/components/ui/page-content";
 import { PageHeader } from "@/components/ui/page-header";
 import { FormSkeleton, Skeleton } from "@/components/ui/skeleton";
@@ -27,6 +29,20 @@ import { ApiError } from "@/lib/api";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import type { SubscriptionDetail } from "@/lib/types";
 
+function parseOptionalAmount(raw: string): { amount?: number; error?: string } {
+  const trimmed = raw.trim();
+  if (!trimmed) return {};
+  const n = Number(trimmed.replace(",", "."));
+  if (!Number.isFinite(n)) return { error: "Valor inválido" };
+  if (n <= 0) {
+    return {
+      error:
+        "Informe um valor maior que zero. Para isentar, marque como cortesia.",
+    };
+  }
+  return { amount: Math.round(n * 100) / 100 };
+}
+
 export default function SubscriptionDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
@@ -35,6 +51,11 @@ export default function SubscriptionDetailPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const [copyDone, setCopyDone] = useState(false);
+  const [showLinkForm, setShowLinkForm] = useState(false);
+  const [customAmountRaw, setCustomAmountRaw] = useState("");
+  const [customAmountError, setCustomAmountError] = useState<string | null>(
+    null,
+  );
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["subscription", id],
@@ -89,10 +110,13 @@ export default function SubscriptionDetailPage() {
   });
 
   const paymentLinkMutation = useMutation({
-    mutationFn: () => createSubscriptionPaymentLink(id),
+    mutationFn: (amount?: number) => createSubscriptionPaymentLink(id, amount),
     onSuccess: async (result) => {
       setPaymentLink(result.paymentUrl);
       setCopyDone(false);
+      setShowLinkForm(false);
+      setCustomAmountRaw("");
+      setCustomAmountError(null);
       setMessage("Link de pagamento gerado");
       setErrorMessage(null);
       await invalidate();
@@ -155,6 +179,43 @@ export default function SubscriptionDetailPage() {
 
   const phoneDigits = data.responsiblePhone?.replace(/\D/g, "") ?? "";
 
+  function openLinkForm() {
+    setShowLinkForm(true);
+    setCustomAmountError(null);
+    setMessage(null);
+  }
+
+  function submitPaymentLink() {
+    const parsed = parseOptionalAmount(customAmountRaw);
+    if (parsed.error) {
+      setCustomAmountError(parsed.error);
+      return;
+    }
+    setCustomAmountError(null);
+    paymentLinkMutation.mutate(parsed.amount);
+  }
+
+  const paymentLinkForm = showLinkForm ? (
+    <CreatePaymentLinkPanel
+      currentAmount={data.amountEstimated}
+      isCustomAmount={data.isCustomAmount}
+      value={customAmountRaw}
+      error={customAmountError}
+      loading={paymentLinkMutation.isPending}
+      disabled={busy}
+      onChange={(next) => {
+        setCustomAmountRaw(next);
+        setCustomAmountError(null);
+      }}
+      onSubmit={submitPaymentLink}
+      onCancel={() => {
+        setShowLinkForm(false);
+        setCustomAmountRaw("");
+        setCustomAmountError(null);
+      }}
+    />
+  ) : null;
+
   return (
     <PageContent>
       <PageHeader
@@ -166,6 +227,9 @@ export default function SubscriptionDetailPage() {
             <SubscriptionStatusBadge status={data.status} />
             {data.isComplimentary ? (
               <Badge variant="primary">Cortesia</Badge>
+            ) : null}
+            {data.isCustomAmount ? (
+              <Badge variant="warning">Valor personalizado</Badge>
             ) : null}
             {data.paidOnline ? (
               <Badge variant="success">Pago online</Badge>
@@ -271,9 +335,9 @@ export default function SubscriptionDetailPage() {
           <div className="mt-3 flex flex-wrap gap-2">
             {canCreatePaymentLink ? (
               <Button
-                loading={paymentLinkMutation.isPending}
+                loading={paymentLinkMutation.isPending && showLinkForm}
                 disabled={busy}
-                onClick={() => paymentLinkMutation.mutate()}
+                onClick={openLinkForm}
               >
                 Criar novo link
               </Button>
@@ -286,6 +350,7 @@ export default function SubscriptionDetailPage() {
               Aprovar novamente
             </Button>
           </div>
+          {paymentLinkForm}
         </Card>
       ) : null}
 
@@ -317,9 +382,9 @@ export default function SubscriptionDetailPage() {
             {canCreatePaymentLink && isWaiting ? (
               <Button
                 variant="secondary"
-                loading={paymentLinkMutation.isPending}
+                loading={paymentLinkMutation.isPending && showLinkForm}
                 disabled={busy}
-                onClick={() => paymentLinkMutation.mutate()}
+                onClick={openLinkForm}
               >
                 Criar novo link
               </Button>
@@ -336,6 +401,8 @@ export default function SubscriptionDetailPage() {
             </Button>
           </div>
         ) : null}
+
+        {isWaiting ? paymentLinkForm : null}
 
         {paymentLink ? (
           <div className="mt-4 space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -435,6 +502,66 @@ export default function SubscriptionDetailPage() {
         )}
       </Card>
     </PageContent>
+  );
+}
+
+function CreatePaymentLinkPanel({
+  currentAmount,
+  isCustomAmount,
+  value,
+  error,
+  loading,
+  disabled,
+  onChange,
+  onSubmit,
+  onCancel,
+}: {
+  currentAmount: number;
+  isCustomAmount: boolean;
+  value: string;
+  error: string | null;
+  loading: boolean;
+  disabled: boolean;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="mt-4 space-y-3 rounded-lg border border-gray-200 bg-white p-4">
+      <p className="text-sm text-gray-600">
+        Valor atual {formatMoney(currentAmount)}
+        {isCustomAmount ? " (personalizado)" : ""}. Deixe o campo vazio para
+        gerar um novo link com esse valor.
+      </p>
+      <FormField
+        id="custom-amount"
+        label="Valor personalizado (R$)"
+        hint="Opcional. Para isentar, use cortesia."
+        error={error ?? undefined}
+      >
+        <Input
+          id="custom-amount"
+          inputMode="decimal"
+          placeholder="Ex.: 150,00"
+          value={value}
+          invalid={Boolean(error)}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      </FormField>
+      <div className="flex flex-wrap gap-2">
+        <Button loading={loading} disabled={disabled} onClick={onSubmit}>
+          Gerar link
+        </Button>
+        <Button
+          variant="secondary"
+          disabled={disabled}
+          onClick={onCancel}
+        >
+          Cancelar
+        </Button>
+      </div>
+    </div>
   );
 }
 
