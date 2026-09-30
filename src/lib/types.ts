@@ -329,6 +329,9 @@ export type SubscriptionListItem = {
   ticketPrice: number;
   amountPaid: number | null;
   amountEstimated: number;
+  isCustomAmount: boolean;
+  customAmount: number | null;
+  customAmountAt: string | null;
   category: { name: string };
   championship: {
     id: string;

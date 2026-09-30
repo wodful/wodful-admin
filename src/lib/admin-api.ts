@@ -254,10 +254,16 @@ export async function setSubscriptionComplimentary(
   });
 }
 
-export async function createSubscriptionPaymentLink(id: string) {
+export async function createSubscriptionPaymentLink(
+  id: string,
+  amount?: number,
+) {
   return apiRequest<{ paymentId: string; paymentUrl: string }>(
     `/admin/subscriptions/${id}/payment-link`,
-    { method: "POST" },
+    {
+      method: "POST",
+      ...(amount != null ? { body: { amount } } : {}),
+    },
   );
 }
 
