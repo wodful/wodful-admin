@@ -198,6 +198,8 @@ export default function SubscriptionDetailPage() {
   const paymentLinkForm = showLinkForm ? (
     <CreatePaymentLinkPanel
       currentAmount={data.amountEstimated}
+      passFeeToAthlete={Boolean(data.championship?.passFeeToAthlete)}
+      feePercent={data.championship?.wodfulFeePercent ?? 0}
       isCustomAmount={data.isCustomAmount}
       value={customAmountRaw}
       error={customAmountError}
@@ -505,8 +507,16 @@ export default function SubscriptionDetailPage() {
   );
 }
 
+function quoteFee(inscription: number, feePercent: number) {
+  const base = Math.round(inscription * 100) / 100;
+  const fee = Math.round(base * feePercent) / 100;
+  return { inscription: base, fee, total: Math.round((base + fee) * 100) / 100 };
+}
+
 function CreatePaymentLinkPanel({
   currentAmount,
+  passFeeToAthlete,
+  feePercent,
   isCustomAmount,
   value,
   error,
@@ -517,6 +527,8 @@ function CreatePaymentLinkPanel({
   onCancel,
 }: {
   currentAmount: number;
+  passFeeToAthlete: boolean;
+  feePercent: number;
   isCustomAmount: boolean;
   value: string;
   error: string | null;
@@ -526,16 +538,28 @@ function CreatePaymentLinkPanel({
   onSubmit: () => void;
   onCancel: () => void;
 }) {
+  const parsed = parseOptionalAmount(value);
+  const preview =
+    passFeeToAthlete && parsed.amount != null
+      ? quoteFee(parsed.amount, feePercent)
+      : null;
+
   return (
     <div className="mt-4 space-y-3 rounded-lg border border-gray-200 bg-white p-4">
       <p className="text-sm text-gray-600">
-        Valor atual {formatMoney(currentAmount)}
-        {isCustomAmount ? " (personalizado)" : ""}. Deixe o campo vazio para
-        gerar um novo link com esse valor.
+        Valor da inscrição {formatMoney(currentAmount)}
+        {isCustomAmount ? " (personalizado)" : ""}.
+        {passFeeToAthlete
+          ? " O valor informado é a inscrição e a taxa entra por cima. Vazio repete a última cobrança, com o total já gravado. Se a inscrição foi personalizada, a taxa é recalculada sobre ela."
+          : " Deixe o campo vazio para gerar um novo link com esse valor."}
       </p>
       <FormField
         id="custom-amount"
-        label="Valor personalizado (R$)"
+        label={
+          passFeeToAthlete
+            ? "Valor da inscrição (R$)"
+            : "Valor personalizado (R$)"
+        }
         hint="Opcional. Para isentar, use cortesia."
         error={error ?? undefined}
       >
@@ -549,6 +573,12 @@ function CreatePaymentLinkPanel({
           onChange={(event) => onChange(event.target.value)}
         />
       </FormField>
+      {preview && preview.fee > 0 ? (
+        <p className="text-sm font-medium text-gray-800">
+          Inscrição {formatMoney(preview.inscription)} + taxa{" "}
+          {formatMoney(preview.fee)} = total {formatMoney(preview.total)}
+        </p>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <Button loading={loading} disabled={disabled} onClick={onSubmit}>
           Gerar link
@@ -592,6 +622,9 @@ function PaymentsList({
             </Link>
             <p className="text-xs text-gray-500">
               {formatDateTime(payment.createdAt)} · {payment.provider}
+              {payment.athleteFeeAmount > 0
+                ? ` · inscrição ${formatMoney(payment.inscriptionAmount ?? 0)} + taxa ${formatMoney(payment.athleteFeeAmount)}`
+                : ""}
             </p>
           </div>
           <PaymentStatusBadge status={payment.status} />

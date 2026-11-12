@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useId, useMemo, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
@@ -160,6 +161,11 @@ function EventsPageContent() {
                     <p className="truncate font-semibold text-gray-900">
                       {event.name}
                     </p>
+                    {event.passFeeToAthlete ? (
+                      <Badge variant="primary" className="mt-1">
+                        Taxa no atleta
+                      </Badge>
+                    ) : null}
                     <p className="mt-0.5 text-xs text-gray-500">
                       {event.accessCode}
                     </p>
@@ -256,6 +262,11 @@ function EventsPageContent() {
                         <div className="font-medium text-gray-900">
                           {event.name}
                         </div>
+                        {event.passFeeToAthlete ? (
+                          <Badge variant="primary" className="mt-1">
+                            Taxa no atleta
+                          </Badge>
+                        ) : null}
                         <div className="text-xs text-gray-500">
                           {event.accessCode}
                         </div>

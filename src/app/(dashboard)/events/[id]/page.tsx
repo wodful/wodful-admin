@@ -57,6 +57,7 @@ function EventDetailPageContent() {
   const mpFeeId = useId();
   const [wodfulFeePercent, setWodfulFeePercent] = useState("");
   const [mpFeePercentEstimate, setMpFeePercentEstimate] = useState("");
+  const [passFeeToAthlete, setPassFeeToAthlete] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
@@ -70,6 +71,7 @@ function EventDetailPageContent() {
   useEffect(() => {
     if (!data) return;
     setWodfulFeePercent(String(data.wodfulFeePercent));
+    setPassFeeToAthlete(data.passFeeToAthlete);
     setMpFeePercentEstimate(
       data.mpFeePercentEstimate == null
         ? ""
@@ -86,9 +88,12 @@ function EventDetailPageContent() {
             : Number(wodfulFeePercent),
         mpFeePercentEstimate:
           mpFeePercentEstimate === "" ? null : Number(mpFeePercentEstimate),
+        passFeeToAthlete,
       }),
-    onSuccess: async () => {
-      setMessage("Financeiro do evento atualizado");
+    onSuccess: async (result) => {
+      setMessage(
+        result.pricingNotice ?? "Financeiro do evento atualizado",
+      );
       setErrorMessage(null);
       await queryClient.invalidateQueries({ queryKey: ["championship", id] });
       await queryClient.invalidateQueries({ queryKey: ["championships"] });
@@ -258,6 +263,8 @@ function EventDetailPageContent() {
           wodfulFeeId={wodfulFeeId}
           mpFeeId={mpFeeId}
           wodfulFeePercent={wodfulFeePercent}
+          passFeeToAthlete={passFeeToAthlete}
+          setPassFeeToAthlete={setPassFeeToAthlete}
           mpFeePercentEstimate={mpFeePercentEstimate}
           setWodfulFeePercent={setWodfulFeePercent}
           setMpFeePercentEstimate={setMpFeePercentEstimate}
@@ -346,6 +353,8 @@ function FinanceTab({
   wodfulFeeId,
   mpFeeId,
   wodfulFeePercent,
+  passFeeToAthlete,
+  setPassFeeToAthlete,
   mpFeePercentEstimate,
   setWodfulFeePercent,
   setMpFeePercentEstimate,
@@ -357,6 +366,8 @@ function FinanceTab({
   wodfulFeeId: string;
   mpFeeId: string;
   wodfulFeePercent: string;
+  passFeeToAthlete: boolean;
+  setPassFeeToAthlete: (value: boolean) => void;
   mpFeePercentEstimate: string;
   setWodfulFeePercent: (value: string) => void;
   setMpFeePercentEstimate: (value: string) => void;
@@ -368,11 +379,34 @@ function FinanceTab({
       <Card
         as="form"
         title="Comissão e custos"
-        description="A comissão Wodful absorve o custo do Mercado Pago — o organizador paga só a comissão sobre o bruto."
+        description={
+          passFeeToAthlete
+            ? "A taxa é somada ao lote. O atleta paga inscrição + taxa, e a Wodful fica com a taxa. O custo do Mercado Pago continua estimado dentro dessa taxa."
+            : "A comissão sai do repasse do organizador e absorve o custo do Mercado Pago."
+        }
         onSubmit={onSaveFees}
         className="space-y-5"
         padding="compact"
       >
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 px-3 py-3">
+          <input
+            type="checkbox"
+            className="mt-1 h-4 w-4 accent-primary"
+            checked={passFeeToAthlete}
+            onChange={(event) => setPassFeeToAthlete(event.target.checked)}
+          />
+          <span>
+            <span className="block text-sm font-medium text-gray-900">
+              Repassar a taxa ao atleta
+            </span>
+            <span className="mt-1 block text-sm text-gray-500">
+              Desligada, a comissão sai do repasse. Ligada, o percentual é
+              somado ao valor do lote e a Wodful fica com essa taxa. O
+              organizador do evento aparece como quem optou por isso na página
+              de inscrição.
+            </span>
+          </span>
+        </label>
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField
             id={wodfulFeeId}
@@ -417,16 +451,24 @@ function FinanceTab({
             value={formatMoney(data.finance.onlineGross)}
           />
           <Stat
+            label="Ajustes de transferência"
+            value={formatMoney(data.finance.transferGross)}
+          />
+          <Stat
             label="Volume manual"
             value={formatMoney(data.finance.manualGross)}
           />
           <Stat
-            label="Base comissionável"
-            value={formatMoney(data.finance.billableGross)}
+            label="Inscrições"
+            value={formatMoney(data.finance.inscriptionTotal)}
           />
           <Stat
-            label={`Comissão Wodful (${data.finance.wodfulFeePercent}%)`}
-            value={formatMoney(data.finance.wodfulFeeAmount)}
+            label="Taxa paga pelo atleta"
+            value={formatMoney(data.finance.athleteFeeAmount)}
+          />
+          <Stat
+            label={`Comissão absorvida (${data.finance.wodfulFeePercent}%)`}
+            value={formatMoney(data.finance.absorbedFeeAmount)}
           />
           <Stat
             label={`Custo MP estimado (${data.finance.mpFeePercent}%)`}
@@ -500,7 +542,9 @@ function TicketsTab({
                         </p>
                       </div>
                       <p className="font-medium text-gray-800">
-                        {formatMoney(ticket.price)}
+                        {data.passFeeToAthlete && ticket.athleteFeeAmount > 0
+                          ? `${formatMoney(ticket.price)} + ${formatMoney(ticket.athleteFeeAmount)} taxa = ${formatMoney(ticket.athleteTotal)}`
+                          : formatMoney(ticket.price)}
                       </p>
                     </li>
                   ))}

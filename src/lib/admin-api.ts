@@ -101,9 +101,17 @@ export async function updateChampionshipFees(
   payload: {
     wodfulFeePercent?: number;
     mpFeePercentEstimate?: number | null;
+    passFeeToAthlete?: boolean;
   },
 ) {
-  return apiRequest<ChampionshipDetail>(`/admin/championships/${id}/fees`, {
+  return apiRequest<{
+    id: string;
+    wodfulFeePercent: number;
+    mpFeePercentEstimate: number | null;
+    passFeeToAthlete: boolean;
+    finance: ChampionshipDetail["finance"];
+    pricingNotice: string | null;
+  }>(`/admin/championships/${id}/fees`, {
     method: "PATCH",
     body: payload,
   });
