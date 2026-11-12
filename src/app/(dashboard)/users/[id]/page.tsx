@@ -366,6 +366,7 @@ function OverviewTab({
                     <p className="text-xs text-gray-500">
                       {event.accessCode} · {formatDate(event.startDate)} –{" "}
                       {formatDate(event.endDate)}
+                      {event.passFeeToAthlete ? " · taxa no atleta" : ""}
                     </p>
                   </div>
                   <StatusBadge isActive={event.isActive} />

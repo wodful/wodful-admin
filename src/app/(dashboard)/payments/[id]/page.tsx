@@ -60,13 +60,30 @@ export default function PaymentDetailPage() {
         <Card title="Detalhes">
           <dl className="space-y-3 text-sm">
             <div>
-              <dt className="text-gray-500">Valor original</dt>
+              <dt className="text-gray-500">Preço do lote</dt>
               <dd className="font-medium text-gray-900">
                 {formatMoney(data.amountOriginal)}
               </dd>
             </div>
             <div>
-              <dt className="text-gray-500">Valor final</dt>
+              <dt className="text-gray-500">Inscrição</dt>
+              <dd className="font-medium text-gray-900">
+                {data.inscriptionAmount == null
+                  ? "—"
+                  : formatMoney(data.inscriptionAmount)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-gray-500">Taxa do atleta</dt>
+              <dd className="font-medium text-gray-900">
+                {formatMoney(data.athleteFeeAmount)}
+                {data.passFeeToAthlete && data.feePercent != null
+                  ? ` (${data.feePercent}%)`
+                  : ""}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-gray-500">Total cobrado</dt>
               <dd className="font-medium text-gray-900">
                 {formatMoney(data.amountFinal)}
               </dd>

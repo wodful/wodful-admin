@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FormSkeleton } from "@/components/ui/skeleton";
@@ -54,9 +55,12 @@ export function SettlementReportCard({ championshipId }: { championshipId: strin
       ) : (
         <ul className="max-h-72 space-y-1.5 overflow-y-auto text-sm text-gray-700">
           {data.lines.map((line) => (
-            <li key={`${line.label}-${line.unitAmount}`}>
+            <li key={`${line.label}-${line.unitAmount}-${line.unitAthleteFee}`}>
               {line.label}: {line.quantity} × {formatMoney(line.unitAmount)} ={" "}
               {formatMoney(line.totalAmount)}
+              {line.totalAthleteFee > 0
+                ? ` (taxa do atleta ${formatMoney(line.totalAthleteFee)})`
+                : ""}
             </li>
           ))}
         </ul>
@@ -77,15 +81,47 @@ export function SettlementReportCard({ championshipId }: { championshipId: strin
 
       <dl className="grid gap-2 border-t border-gray-100 pt-3 text-sm sm:grid-cols-2">
         <div>
-          <dt className="text-gray-500">Bruto</dt>
-          <dd className="font-medium">{formatMoney(data.totals.gross)}</dd>
+          <dt className="text-gray-500">Inscrições</dt>
+          <dd className="font-medium">
+            {formatMoney(data.totals.inscriptionTotal)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-gray-500">Taxa paga pelo atleta</dt>
+          <dd className="font-medium">
+            {formatMoney(data.totals.athleteFeeAmount)}
+          </dd>
         </div>
         <div>
           <dt className="text-gray-500">
-            Comissão ({data.totals.wodfulFeePercent}%)
+            Comissão absorvida ({data.totals.wodfulFeePercent}%)
           </dt>
           <dd className="font-medium">
-            {formatMoney(data.totals.wodfulFeeAmount)}
+            {formatMoney(data.totals.absorbedFeeAmount)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-gray-500">Ajustes de transferência</dt>
+          <dd className="font-medium">
+            {formatMoney(data.totals.transferGross)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-gray-500">Total cobrado no Mercado Pago</dt>
+          <dd className="font-medium">
+            {formatMoney(data.totals.chargedTotal)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-gray-500">
+            Custo MP estimado ({data.totals.mpFeePercent}%)
+          </dt>
+          <dd className="font-medium">{formatMoney(data.totals.mpFeeAmount)}</dd>
+        </div>
+        <div>
+          <dt className="text-gray-500">Margem Wodful</dt>
+          <dd className="font-medium">
+            {formatMoney(data.totals.wodfulNetMargin)}
           </dd>
         </div>
         <div>
@@ -95,13 +131,17 @@ export function SettlementReportCard({ championshipId }: { championshipId: strin
             atleta(s)
           </dd>
         </div>
-        <div>
-          <dt className="text-gray-500">Líquido (bruto − comissão)</dt>
+        <div className="sm:col-span-2">
+          <dt className="text-gray-500">Líquido do organizador</dt>
           <dd className="font-semibold text-gray-900">
             {formatMoney(data.totals.organizerNet)}
           </dd>
         </div>
       </dl>
+
+      {data.totals.passFeeToAthlete ? (
+        <Badge variant="primary">Taxa repassada ao atleta</Badge>
+      ) : null}
 
       <Button type="button" variant="secondary" onClick={onCopy}>
         {copied ? "Copiado" : "Copiar demonstrativo"}

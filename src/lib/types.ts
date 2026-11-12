@@ -16,14 +16,20 @@ export type ResultType = "SCORE" | "RANKING";
 
 export type FeeBreakdown = {
   onlineGross: number;
+  transferGross: number;
   manualGross: number;
+  inscriptionTotal: number;
   billableGross: number;
+  athleteFeeAmount: number;
+  absorbedFeeAmount: number;
+  chargedTotal: number;
   wodfulFeePercent: number;
   mpFeePercent: number;
   wodfulFeeAmount: number;
   mpFeeAmount: number;
   organizerNetEstimate: number;
   wodfulNetMarginEstimate: number;
+  passFeeToAthlete: boolean;
 };
 
 export type PublicUser = {
@@ -134,6 +140,7 @@ export type ChampionshipListItem = {
   createdAt: string;
   organizer: OrganizerSummary | null;
   wodfulFeePercent: number;
+  passFeeToAthlete: boolean;
   mpFeePercentEstimate: number | null;
   counts: {
     approved: number;
@@ -213,6 +220,7 @@ export type ChampionshipDetail = {
   createdAt: string;
   organizer: OrganizerSummary | null;
   wodfulFeePercent: number;
+  passFeeToAthlete: boolean;
   mpFeePercentEstimate: number | null;
   defaultWodfulFeePercent: number;
   defaultMpFeePercent: number;
@@ -226,6 +234,8 @@ export type ChampionshipDetail = {
       id: string;
       name: string;
       price: number;
+      athleteFeeAmount: number;
+      athleteTotal: number;
       quantity: number;
       enabled: boolean;
       startDate: string;
@@ -261,6 +271,7 @@ export type UserOverview = {
     endDate: string;
     createdAt: string;
     wodfulFeePercent: number;
+    passFeeToAthlete: boolean;
     mpFeePercentEstimate: number | null;
     revenuePaid: number;
     wodfulFeeAmount: number;
@@ -293,6 +304,10 @@ export type SettlementLine = {
   quantity: number;
   unitAmount: number;
   totalAmount: number;
+  unitAthleteFee: number;
+  totalAthleteFee: number;
+  unitAbsorbedFee: number;
+  totalAbsorbedFee: number;
 };
 
 export type SettlementPreview = {
@@ -300,6 +315,7 @@ export type SettlementPreview = {
     id: string;
     name: string;
     wodfulFeePercent: number;
+    passFeeToAthlete: boolean;
   };
   lines: SettlementLine[];
   complimentary: { name: string }[];
@@ -308,9 +324,18 @@ export type SettlementPreview = {
     payingAthletes: number;
     complimentaryCount: number;
     gross: number;
+    inscriptionTotal: number;
+    athleteFeeAmount: number;
+    absorbedFeeAmount: number;
+    transferGross: number;
+    chargedTotal: number;
     wodfulFeePercent: number;
     wodfulFeeAmount: number;
+    mpFeePercent: number;
+    mpFeeAmount: number;
+    wodfulNetMargin: number;
     organizerNet: number;
+    passFeeToAthlete: boolean;
   };
   copyText: string;
 };
@@ -337,6 +362,8 @@ export type SubscriptionListItem = {
     id: string;
     name: string;
     accessCode: string;
+    passFeeToAthlete?: boolean;
+    wodfulFeePercent?: number;
     organizer: { id: string; name: string; email: string } | null;
   } | null;
 };
@@ -370,6 +397,9 @@ export type SubscriptionDetail = SubscriptionListItem & {
     provider: string;
     amountOriginal: number;
     amountFinal: number;
+    inscriptionAmount: number | null;
+    athleteFeeAmount: number;
+    passFeeToAthlete: boolean;
     providerPreferenceId: string | null;
     providerPaymentId: string | null;
     approvedEmailSentAt: string | null;
@@ -391,6 +421,10 @@ export type PaymentListItem = {
   provider: string;
   amountOriginal: number;
   amountFinal: number;
+  inscriptionAmount: number | null;
+  athleteFeeAmount: number;
+  feePercent: number | null;
+  passFeeToAthlete: boolean;
   providerPreferenceId: string | null;
   providerPaymentId: string | null;
   approvedEmailSentAt: string | null;
@@ -417,6 +451,10 @@ export type PaymentDetail = {
   provider: string;
   amountOriginal: number;
   amountFinal: number;
+  inscriptionAmount: number | null;
+  athleteFeeAmount: number;
+  feePercent: number | null;
+  passFeeToAthlete: boolean;
   providerPreferenceId: string | null;
   providerPaymentId: string | null;
   approvedEmailSentAt: string | null;

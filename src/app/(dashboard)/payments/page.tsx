@@ -243,7 +243,14 @@ function PaymentsPageContent() {
                         <PaymentStatusBadge status={payment.status} />
                       </td>
                       <td className="px-4 py-3 text-gray-600">
-                        {formatMoney(payment.amountFinal)}
+                        <div>{formatMoney(payment.amountFinal)}</div>
+                        {payment.athleteFeeAmount > 0 ? (
+                          <div className="text-xs text-gray-500">
+                            inscrição{" "}
+                            {formatMoney(payment.inscriptionAmount ?? 0)} · taxa{" "}
+                            {formatMoney(payment.athleteFeeAmount)}
+                          </div>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3 text-gray-600">
                         {formatDateTime(payment.createdAt)}
